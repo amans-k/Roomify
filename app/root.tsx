@@ -1,6 +1,10 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { useEffect, useState } from "react";
 
+// 🔴 ADD THESE 2 LINES
+import type { LinksFunction } from "react-router";
+import appStylesHref from "./app.css?url";
+
 // Define types for Puter
 interface PuterUser {
   username?: string;
@@ -34,6 +38,11 @@ interface AuthContextType {
   isLoading?: boolean;
 }
 
+// 🔴 ADD THIS FUNCTION
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: appStylesHref },
+];
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -41,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
-        <Links />
+        <Links /> {/* This will now include your CSS */}
         {/* Puter SDK script */}
         <script src="https://js.puter.com/v2/" async></script>
       </head>
@@ -71,7 +80,6 @@ export default function Root() {
             
             if (signedIn) {
               const user = await window.puter.auth.getUser();
-              // Fix: Handle different possible user properties
               setUserName(user?.username || user?.name || user?.email || 'User');
             }
           }
@@ -92,7 +100,6 @@ export default function Root() {
       if (window.puter?.auth) {
         const user = await window.puter.auth.signIn();
         setIsSignedIn(true);
-        // Fix: Handle different possible user properties
         setUserName(user?.username || user?.name || user?.email || 'User');
       } else {
         alert("Puter SDK not loaded. Please refresh the page.");
