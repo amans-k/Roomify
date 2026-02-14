@@ -1,9 +1,11 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { useEffect, useState } from "react";
-
-// 🔴 ADD THESE 2 LINES
 import type { LinksFunction } from "react-router";
 import appStylesHref from "./app.css?url";
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: appStylesHref },
+];
 
 // Define types for Puter
 interface PuterUser {
@@ -29,7 +31,6 @@ declare global {
   }
 }
 
-// Define AuthContext type
 interface AuthContextType {
   isSignedIn: boolean;
   userName?: string;
@@ -38,11 +39,6 @@ interface AuthContextType {
   isLoading?: boolean;
 }
 
-// 🔴 ADD THIS FUNCTION
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: appStylesHref },
-];
-
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -50,9 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
-        <Links /> {/* This will now include your CSS */}
-        {/* Puter SDK script */}
-        <script src="https://js.puter.com/v2/" async></script>
+        <Links />
       </head>
       <body>
         {children}
@@ -68,30 +62,48 @@ export default function Root() {
   const [userName, setUserName] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check auth status on load
+  // Load Puter script dynamically to avoid duplicate registry error
   useEffect(() => {
-    const checkAuth = async () => {
+    // Check if script already exists
+    if (document.querySelector('script[src="https://js.puter.com/v2/"]')) {
+      initializePuter();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://js.puter.com/v2/';
+    script.async = true;
+    script.onload = initializePuter;
+    script.onerror = () => {
+      console.error("Failed to load Puter SDK");
+      setIsLoading(false);
+    };
+    document.head.appendChild(script);
+
+    async function initializePuter() {
       try {
-        // Wait for Puter to load
+        // Wait a bit for Puter to initialize
         setTimeout(async () => {
           if (window.puter?.auth) {
-            const signedIn = await window.puter.auth.isSignedIn();
-            setIsSignedIn(signedIn);
-            
-            if (signedIn) {
-              const user = await window.puter.auth.getUser();
-              setUserName(user?.username || user?.name || user?.email || 'User');
+            try {
+              const signedIn = await window.puter.auth.isSignedIn();
+              setIsSignedIn(signedIn);
+              
+              if (signedIn) {
+                const user = await window.puter.auth.getUser();
+                setUserName(user?.username || user?.name || user?.email || 'User');
+              }
+            } catch (authError) {
+              console.error("Puter auth error:", authError);
             }
           }
           setIsLoading(false);
         }, 1000);
       } catch (error) {
-        console.error("Auth check failed:", error);
+        console.error("Puter initialization failed:", error);
         setIsLoading(false);
       }
-    };
-
-    checkAuth();
+    }
   }, []);
 
   // Sign in function
@@ -102,7 +114,7 @@ export default function Root() {
         setIsSignedIn(true);
         setUserName(user?.username || user?.name || user?.email || 'User');
       } else {
-        alert("Puter SDK not loaded. Please refresh the page.");
+        console.log("Puter SDK not loaded yet");
       }
     } catch (error) {
       console.error("Sign in failed:", error);
@@ -122,7 +134,6 @@ export default function Root() {
     }
   };
 
-  // Provide context to children
   return (
     <Outlet context={{ 
       isSignedIn, 
